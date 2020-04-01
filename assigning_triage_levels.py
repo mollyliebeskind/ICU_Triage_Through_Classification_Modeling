@@ -1,11 +1,22 @@
+"""
+Adds flags indicating survival risk to the X_test and original dataframes.
+Saves all dataframes as csv files for visualization in Tableau.
+
+Files saved include
+-- X_test_with_flag.csv
+-- original_data_with_flag.csv
+"""
+
+import pickle
 import pandas as pd
-import numpy as np
 
-from sklearn.metrics import roc_auc_score, roc_curve, accuracy_score, precision_score, recall_score, confusion_matrix, precision_recall_curve
-
-
-
-def f(row):
+def flag(row):
+    """Replaces any value in column 'flag' with flags to indicate prbability
+    of survival where
+      -- R = high risk of not surviving
+      -- Y = medium risk of not surviving
+      -- G = low risk of not surviving
+    """
     if row['flag'] <= .3:
         val = 'G'
     elif .3 < row['flag'] <= .7:
@@ -14,40 +25,66 @@ def f(row):
         val = 'R'
     return val
 
-def create_flag_column(model, X_test):
-    """Creates a new dataframe of X_test combined with the green, yellow,
-    and red, triage flags."""
+def create_flag_column(x_df, saved_model):
+    """Adds flags to the X_test dataframe that indicate survival risk level
+    where
+      -- R = high risk of not surviving
+      -- Y = medium risk of not surviving
+      -- G = low risk of not surviving
 
-    prediction_probabilities = model.predict_proba(X_test)[:, 1]
-    pred_proba_df = pd.DataFrame({'pred_proba': prediction_probabilities})
+    Args:
+    x_df -- the X_test dataframe created in modeling
+    saved_model -- the model used to predict surivival probability
+    """
 
-    #add the predicted probabilities to the X_test dataset
-    X_test_proba_appended = pd.concat((X_test.reset_index(), pred_proba_df), axis=1)
+    pred_probas = saved_model.predict_proba(x_df)[:, 1]
+    pred_proba_df = pd.DataFrame({'pred_proba': pred_probas})
+
+    # Adding flags to indicate risk level. R = high risk, Y = medium, G = low
+    X_test_probs = pd.concat((X_test.reset_index(), pred_proba_df), axis=1)
+    X_test_probs['flag'] = X_test_probs.pred_proba.apply(flag, axis=1)
 
     # for the visualization, creating 'patient_id' - hypothetical patient ID numbers.
-    X_test_proba_appended = X_test_proba_appended.rename(columns={'index':'patient_id'})
+    X_test_probs = X_test_probs.rename(columns={'index':'patient_id'})
 
-    # Adding an additional predict_proba column that will be turned into triage flag indicators
-    X_test_proba_appended['flag'] = X_test_proba_appended.pred_proba
+    # Save as csv for visualization in Tableau
+    X_test_probs.to_csv('X_test_with_flag.csv')
 
-    X_test_proba_appended['flag'] = X_test_proba_appended.apply(f, axis=1)
+    return X_test_probs
 
-    X_test_proba_appended.to_csv('prediction_with_flag.csv')
 
-    return X_test_proba_appended
+def flag_original(X_test, original_data, predict_proba_df):
+    """Saves the original dataframe with flags appended to any row that was
+    included in the X_test set. Dataframe will be used for Tableau
+    visualization.
+    """
 
-def add_flags_to_original_dataset(model, X_test, original_data):
-    """Adds flags back to the original dataset without feature engineered
-    columns for better visualization."""
-    X_test_indices = X_test.index
-    X_test_indices = [ind for ind in X_test_indices]
-    X_test_from_original = original_data.loc[X_test_indices,:]
-    X_test_from_original_flagged = pd.concat((X_test_from_original.reset_index(), pred_proba_df), axis=1)
-    X_test_from_original_flagged = X_test_from_original_flagged.rename(columns={'index':'patient_id'})
+    # Identify the X_test rows within the original dataset
+    X_test_indices = list(X_test.index)
+    filtered_original = original_data.loc[X_test_indices, :]
+    original_flagged = pd.concat((filtered_original.reset_index(),
+                                  predict_proba_df), axis=1)
+    original_flagged = original_flagged.rename(columns={'index':'patient_id'})
 
-    X_test_from_original_flagged['flag'] = X_test_from_original_flagged.pred_proba
-    X_test_from_original_flagged['flag'] = X_test_from_original_flagged.apply(f, axis=1)
+    # Add R, G, Y flags to dataframe
+    original_flagged['flag'] = original_flagged.pred_proba.apply(flag, axis=1)
 
-    X_test_proba_appended.to_csv('original_data_with_flag.csv')
+    # Save as csv for Tableau visualization
+    original_flagged.to_csv('original_data_with_flag.csv')
 
-    return X_test_proba_appended
+def main():
+    """Loads necessary files for appending risk flags. Calls functions to
+    add survival risk flags to the X_test and original datasets.
+    """
+    # Load necessary files
+    X_test = pd.read_csv('X_test.csv')
+    original_dataset = pd.read_csv('original_dataset.csv')
+    model = pickle.load(open('icu_survival_model.pkl', 'rb'))
+
+    # Append flags to X_test
+    test_pred_proba = create_flag_column(X_test, model)
+
+    # Append flags to original dataset
+    flag_original(X_test, original_dataset, test_pred_proba)
+
+main()
