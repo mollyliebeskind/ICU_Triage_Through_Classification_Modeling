@@ -54,6 +54,7 @@ def final_model(data):
     """
 
     X_train, X_test, y_train, y_test = tts(data)
+    X_test.to_csv('X_test.csv') #For later use in appending risk flags
 
     ros = RandomOverSampler(random_state=19)
     X_train, y_train = ros.fit_sample(X_train, y_train)
@@ -64,7 +65,8 @@ def final_model(data):
     model.fit(X_train, y_train)
     prediction = prediction = model.predict(X_test)
 
-    print("Model Recall: ", recall_score(y_test, prediction, average='binary', pos_label=1))
+    print("Model Recall: ", recall_score(y_test, prediction, average='binary',
+                                         pos_label=1))
     print("Model Precision: ", precision_score(y_test, prediction))
     print("Model Accuracy: ", accuracy_score(y_test, prediction))
 
@@ -72,4 +74,6 @@ def final_model(data):
 
     return
 
-final_model()
+def main():
+    model_dataframe = pd.read_csv('model_dataframe.csv')
+    final_model(model_dataframe)
