@@ -50,7 +50,7 @@ def tts(data):
 def final_model(data):
     """Splits data into train and test sets and deplys a random forest
     classifier to predict survival probability. Prints accuracy scores
-    including recall and precision. Pickles and returns the model.
+    including recall and precision. Pickles the model.
     """
 
     X_train, X_test, y_train, y_test = tts(data)
@@ -70,4 +70,6 @@ def final_model(data):
 
     pickle.dump(model, open('icu_survival_model.pkl', 'wb'))
 
-    return model
+    return
+
+final_model()
