@@ -32,6 +32,7 @@ def import_data():
     icu_data = access_aws('SELECT * FROM icu_mortality_table')
     data_dict = access_aws('SELECT * FROM icu_data_dict_table')
 
+    icu_data.to_csv('original_dataset.csv') # to append risk flags to later
     return icu_data, data_dict
 
 # Data Cleaning
