@@ -138,3 +138,5 @@ def main():
     model_df = feature_engineering(model_df)
 
     model_df.to_csv('model_dataframe.csv')
+
+main()
